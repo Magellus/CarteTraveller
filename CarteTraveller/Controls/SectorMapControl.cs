@@ -26,13 +26,13 @@ public class SectorMapControl : FrameworkElement
     public static readonly DependencyProperty CurrentRouteProperty =
         DependencyProperty.Register(
             nameof(CurrentRoute),
-            typeof(List<HexCoord>),
+            typeof(List<GlobalHexCoord>),
             typeof(SectorMapControl),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public List<HexCoord>? CurrentRoute
+    public List<GlobalHexCoord>? CurrentRoute
     {
-        get => (List<HexCoord>?)GetValue(CurrentRouteProperty);
+        get => (List<GlobalHexCoord>?)GetValue(CurrentRouteProperty);
         set => SetValue(CurrentRouteProperty, value);
     }
 
