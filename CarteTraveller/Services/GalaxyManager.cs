@@ -14,6 +14,12 @@ public class GalaxyManager : IGalaxyProvider
         _storagePath = storagePath;
     }
 
+    /// <summary>
+    /// Sert à charger une liste de coordonné universelle des étoiles à l'intérieur du saut maximum pour calculer la route.
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="maxJump"></param>
+    /// <returns></returns>
     public IEnumerable<GlobalHexCoord> GetWorldsInRadius(GlobalHexCoord center, int maxJump)
     {
         // 1. Convertir le centre en coordonnées absolues (grille continue infinie)
@@ -76,4 +82,33 @@ public class GalaxyManager : IGalaxyProvider
 
         return sector;
     }
+
+    /// <summary>
+    /// Va vider le dictionnaire de secteur au fur et à la mesure qu'on se déplace sur la carte.
+    /// </summary>
+    /// <param name="currentCenter"></param>
+    /// <param name="keepRadius"></param>
+    void IGalaxyProvider.PurgeDistantSectors(SectorCoordinate currentCenter, int keepRadius)
+    {
+        var keysToRemove = new List<SectorCoordinate>();
+
+        foreach (var loadedCoord in _loadedSectors.Keys)
+        {
+            // Si la distance X ou Y dépasse le rayon de conservation, on marque pour suppression
+            if (Math.Abs(loadedCoord.X - currentCenter.X) > keepRadius ||
+                Math.Abs(loadedCoord.Y - currentCenter.Y) > keepRadius)
+            {
+                keysToRemove.Add(loadedCoord);
+            }
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            // Optionnel : Sauvegarder si l'état en RAM est "Dirty" (modifié mais non sauvegardé)
+            _loadedSectors.Remove(key);
+        }
+    }
+
+    //TODO: faire la même chose mais pour charger des secteur.
+
 }

@@ -26,35 +26,45 @@ namespace CarteTraveller
             InitializeComponent();
 
             // 1. Chargement de l'état au démarrage
+            // TODO: enlever la partie ou je gère le secteur de cette validation pour la descendre dans un appstate par campagne.
+            //De cette façon, je peux avoir plusieurs campagne en cours dans des secteurs différent et des carte différente si je veux.
             _currentAppState = AppStateService.LoadState();
+            // TODO: utiliser le contenu du premier appstate pour trouver la dernière campagne en cours.
+            // TODO: planifier une façon de changer de campagne une fois l'application ouverte.
             _galaxyManager = new GalaxyManager(@"C:\Traveller\Saves\MaCampagne");
 
-            Sector mySector = new Sector();
+            // TODO: récupérer le 2e appState ici...
+            // 2. Initialisation de la carte sur le dernier secteur connu
+            LoadMapAt(_currentAppState.LastActiveSector, _currentAppState.LastZoomLevel);
 
+        }
+
+        private void LoadMapAt(SectorCoordinate coord, double zoomLevel)
+        {
+            //_galaxyManager.GetOrLoadSector(coord)
+            // TODO: Pourquoi j'ai fait ça en private ?
+
+            string filename = $"Sector_{coord.X}_{coord.Y}.json";
+
+            Sector mySector = new Sector();
             // Chargement
-            var monSecteurCharge = SectorPersistenceService.LoadSector("mon_secteur.json");
+            var monSecteurCharge = SectorPersistenceService.LoadSector(filename);
 
             if (monSecteurCharge != null)
             {
+                // Campagne existante trouvé
                 mySector = monSecteurCharge;
             }
             else
             {
-                // Utilise le défaut de 50%
+                // Nouvelle campagne
                 SectorGeneratorService générateur = new SectorGeneratorService();
-                mySector = générateur.GenerateSector("Alpha",-2);
-                
+                mySector = générateur.GenerateSector("Sector_0_0", -2);
+
                 // Sauvegarde
-                SectorPersistenceService.SaveSector("mon_secteur.json", mySector);
+                SectorPersistenceService.SaveSector("Sector_0_0.json", mySector);
             }
-
             MapControl.SectorData = mySector;
-
-        }
-
-        private void LoadMapAt(SectorCoordinate coord)
-        {
-            // Logique pour centrer ton SectorMapControl
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

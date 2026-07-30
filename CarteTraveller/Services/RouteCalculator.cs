@@ -18,6 +18,7 @@ namespace CarteTraveller.Services
             {
                 var current = openSet.Dequeue();
 
+                // Si le point actuel est le point d'arrivé
                 if (current == target)
                 {
                     // Reconstitution du chemin

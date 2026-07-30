@@ -74,7 +74,7 @@ namespace CarteTraveller.Services
 
             uwp.Temperature = Dice.Roll(2);
             // TODO: ajouter logique de sans atmosphère. roasting le jour et freezing la nuit.
-            if (uwp.Atmosphere == 0 || uwp.Atmosphere == 0) {}
+            if (uwp.Atmosphere == 0 || uwp.Atmosphere == 1) {}
             else if (uwp.Atmosphere <= 3) { uwp.Temperature -= 2; } 
             else if (uwp.Atmosphere <= 5 || uwp.Atmosphere == 14) { uwp.Temperature -= 1; }
             else if (uwp.Atmosphere <= 7) {} 
