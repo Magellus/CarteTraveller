@@ -9,5 +9,6 @@ public interface IGalaxyProvider
 
     void PurgeDistantSectors(SectorCoordinate currentCenter, int keepRadius = 1);
 
+    Sector? GetOrLoadSector(SectorCoordinate coord);
 
 }

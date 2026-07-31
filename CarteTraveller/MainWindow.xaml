@@ -18,11 +18,11 @@
             <StackPanel x:Name="ControlPanel">
                 <TextBlock Text="CALCULATEUR DE SAUT" Foreground="Azure" FontWeight="Bold" FontSize="14" Margin="0,0,0,20"/>
 
-                <TextBlock Text="Hexagone Origine (ex: 0101)" Foreground="Gray" FontSize="11" Margin="0,0,0,3"/>
-                <TextBox x:Name="TxtOrigin" Text="0101" Background="#2A2A32" Foreground="White" BorderBrush="#444" Padding="5" Margin="0,0,0,15"/>
+                <TextBlock Text="Hexagone Origine (ex: 00000101)" Foreground="Gray" FontSize="11" Margin="0,0,0,3"/>
+                <TextBox x:Name="TxtOrigin" Text="00000101" Background="#2A2A32" Foreground="White" BorderBrush="#444" Padding="5" Margin="0,0,0,15"/>
 
-                <TextBlock Text="Hexagone Cible (ex: 0504)" Foreground="Gray" FontSize="11" Margin="0,0,0,3"/>
-                <TextBox x:Name="TxtTarget" Text="0504" Background="#2A2A32" Foreground="White" BorderBrush="#444" Padding="5" Margin="0,0,0,15"/>
+                <TextBlock Text="Hexagone Cible (ex: 00000504)" Foreground="Gray" FontSize="11" Margin="0,0,0,3"/>
+                <TextBox x:Name="TxtTarget" Text="00000504" Background="#2A2A32" Foreground="White" BorderBrush="#444" Padding="5" Margin="0,0,0,15"/>
 
                 <TextBlock Text="Capacité de Saut (Jump-N)" Foreground="Gray" FontSize="11" Margin="0,0,0,3"/>
                 <ComboBox x:Name="CboJump" SelectedIndex="1" Background="#2A2A32"  Foreground="White" Margin="0,0,0,25">
@@ -47,8 +47,7 @@
             <!-- Notre contrôle personnalisé. 
                  On lie (Bind) la propriété SectorData au modèle de vue (ViewModel) -->
             <controls:SectorMapControl 
-                x:Name="MapControl"
-                SectorData="{Binding CurrentSector}" 
+                x:Name="MapControl" 
                 Width="1500" Height="1800" 
                 Margin="20"/>
 

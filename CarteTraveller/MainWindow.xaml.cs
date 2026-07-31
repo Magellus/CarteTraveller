@@ -2,6 +2,16 @@
 using CarteTraveller.Services;
 using System.Windows;
 
+using System.Text;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
 namespace CarteTraveller
 {
     /// <summary>
@@ -29,37 +39,10 @@ namespace CarteTraveller
             }
             _campaignContext.CurrentCampaignPath = _currentAppState.LastCampaignPath;
 
-            LoadMapAt(_currentAppState.LastActiveSector,1);
-        }
-
-        private void LoadMapAt(SectorCoordinate coord, double zoomLevel)
-        {
-            //_galaxyManager.GetOrLoadSector(coord)
-            // TODO: Pourquoi j'ai fait ça en private ?
-
-            string filename = $"Sector_{coord.X}_{coord.Y}.json";
-
-            Sector mySector = new Sector();
-            // Chargement
-            var monSecteurCharge = SectorPersistenceService.LoadSector(filename);
-
-            if (monSecteurCharge != null)
-            {
-                // Campagne existante trouvé
-                mySector = monSecteurCharge;
-            }
-            else
-            {
-                // Nouvelle campagne
-                SectorGeneratorService générateur = new SectorGeneratorService();
-                mySector = générateur.GenerateSector("Sector_0_0");
-
-                // Combinaison sécurisée du répertoire et du fichier
-                string fullFilePath = System.IO.Path.Combine(_currentAppState.LastCampaignPath, "Sector_0_0.json");
-                // Sauvegarde
-                SectorPersistenceService.SaveSector(fullFilePath, mySector);
-            }
-            MapControl.SectorData = mySector;
+            // On branche le délégué. 
+            // Chaque fois que le contrôle a besoin de dessiner un hexagone d'un secteur, 
+            // il appellera GetSector du GalaxyManager.
+            MapControl.SectorProvider = coord => _galaxyManager.GetOrLoadSector(coord);
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -74,54 +57,61 @@ namespace CarteTraveller
 
         private void OnCalculateRouteClick(object sender, RoutedEventArgs e)
         {
-            //TxtStatus.Text = string.Empty;
+            TxtStatus.Text = string.Empty;
 
-            //if (MapControl.SectorData == null)
-            //{
-            //    TxtStatus.Foreground = Brushes.Orange;
-            //    TxtStatus.Text = "Erreur: Aucun secteur chargé.";
-            //    return;
-            //}
+            // Parsing sommaire des coordonnées hexagones
+            if (!TryParseHex(TxtOrigin.Text, out var start) || !TryParseHex(TxtTarget.Text, out var target))
+            {
+                TxtStatus.Foreground = Brushes.Orange;
+                TxtStatus.Text = "Format d'hexagone invalide. Utilisez le format CCLL (ex: 0205).";
+                return;
+            }
 
-            //// Parsing sommaire des coordonnées hexagones
-            //if (!TryParseHex(TxtOrigin.Text, out var start) || !TryParseHex(TxtTarget.Text, out var target))
-            //{
-            //    TxtStatus.Foreground = Brushes.Orange;
-            //    TxtStatus.Text = "Format d'hexagone invalide. Utilisez le format CCLL (ex: 0205).";
-            //    return;
-            //}
+            int maxJump = CboJump.SelectedIndex + 1; // Index 0 = Jump-1
 
-            //int maxJump = CboJump.SelectedIndex + 1; // Index 0 = Jump-1
+            // LIMITATION TEMPORAIRE : On s'assure que le départ et l'arrivée 
+            // sont dans le secteur actuellement affiché.
+            var secteurActif = _currentAppState.LastActiveSector; // ou la coordonnée active (ex: 0,0)
 
-            //// Exécution de l'algorithme A*
-            //var route = RouteCalculator.FindRoute(_galaxyManager, start, target, maxJump);
+            if (start.SectorX != secteurActif.X || start.SectorY != secteurActif.Y ||
+                target.SectorX != secteurActif.X || target.SectorY != secteurActif.Y)
+            {
+                MessageBox.Show("Calcul de route temporairement limité au secteur actif.", "Limitation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-            //if (route != null)
-            //{
-            //    MapControl.CurrentRoute = route;
-            //    TxtStatus.Foreground = Brushes.LimeGreen;
-            //    TxtStatus.Text = $"Route établie ! {route.Count - 1} saut(s) requis.";
-            //}
-            //else
-            //{
-            //    MapControl.CurrentRoute = null; // Efface le tracé précédent s'il existe
-            //    TxtStatus.Foreground = Brushes.Coral;
-            //    TxtStatus.Text = $"Impossible de tracer la route. Vous avez besoin d'un plus gros moteur (Moteur de saut insuffisant ou système inaccessible).";
-            //}
+            // Exécution de l'algorithme A*
+            var route = RouteCalculator.FindRoute(_galaxyManager, start, target, maxJump);
+
+            if (route != null)
+            {
+                MapControl.CurrentRoute = route;
+                TxtStatus.Foreground = Brushes.LimeGreen;
+                TxtStatus.Text = $"Route établie ! {route.Count - 1} saut(s) requis.";
+            }
+            else
+            {
+                MapControl.CurrentRoute = null; // Efface le tracé précédent s'il existe
+                TxtStatus.Foreground = Brushes.Coral;
+                TxtStatus.Text = $"Impossible de tracer la route. Vous avez besoin d'un plus gros moteur (Moteur de saut insuffisant ou système inaccessible).";
+            }
         }
 
-        //private bool TryParseHex(string input, out GlobalHexCoord coord)
-        //{
-        //    coord = new GlobalHexCoord(0, 0);
-        //    if (string.IsNullOrWhiteSpace(input) || input.Length != 4) return false;
+        private bool TryParseHex(string input, out GlobalHexCoord coord)
+        {
+            coord = new GlobalHexCoord(0, 0, 0, 0);
+            if (string.IsNullOrWhiteSpace(input) || input.Length != 8) return false;
 
-        //    if (int.TryParse(input.Substring(0, 2), out int col) && int.TryParse(input.Substring(2, 2), out int row))
-        //    {
-        //        coord = new GlobalHexCoord(col, row);
-        //        return true;
-        //    }
-        //    return false;
-        //}
+            if (int.TryParse(input.Substring(0, 2), out int secCol) && 
+                int.TryParse(input.Substring(2, 2), out int secRow) &&
+                int.TryParse(input.Substring(2, 2), out int col) &&
+                int.TryParse(input.Substring(2, 2), out int row))
+            {
+                coord = new GlobalHexCoord(secCol, secRow, col, row);
+                return true;
+            }
+            return false;
+        }
 
     }
 }

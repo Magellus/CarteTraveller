@@ -1,7 +1,7 @@
 ﻿using CarteTraveller.Models;
 using CarteTraveller.Services;
-using System;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace CarteTraveller.Controls;
@@ -22,21 +22,11 @@ public class SectorMapControl : FrameworkElement
         set => SetValue(ActiveSectorCoordinateProperty, value);
     }
 
-    // Propriété de dépendance pour lier le modèle Sector
-    public static readonly DependencyProperty SectorDataProperty =
-        DependencyProperty.Register(
-            nameof(SectorData),
-            typeof(Sector),
-            typeof(SectorMapControl),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    // Un délégué qui prend une coordonnée de secteur et retourne le secteur correspondant.
+    // La Vue demande, le parent (MainWindow) fournit.
+    public Func<SectorCoordinate, Sector?>? SectorProvider { get; set; }
 
-    public Sector? SectorData
-    {
-        get => (Sector?)GetValue(SectorDataProperty);
-        set => SetValue(SectorDataProperty, value);
-    }
-
-    // 2. NOUVELLE propriété pour le tracé de la route
+    // NOUVELLE propriété pour le tracé de la route
     public static readonly DependencyProperty CurrentRouteProperty =
         DependencyProperty.Register(
             nameof(CurrentRoute),
@@ -53,11 +43,23 @@ public class SectorMapControl : FrameworkElement
     // Le rayon de l'hexagone (la distance entre le centre et un sommet)
     private const double HexSize = 25.0;
 
+    private Point? _dragStart = null;
+    private Vector _mapOffset = new Vector(0, 0); // Le décalage actuel de la caméra
+    private Vector _tempDragOffset = new Vector(0, 0); // Le décalage pendant qu'on glisse
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
 
-        // 0. Déclare le pinceau transparent en haut de OnRender avec tes autres ressources
+        // On calcule le décalage total (permanent + le drag en cours)
+        double totalOffsetX = _mapOffset.X + _tempDragOffset.X;
+        double totalOffsetY = _mapOffset.Y + _tempDragOffset.Y;
+
+        // On pousse une transformation spatiale. 
+        // TOUT ce qui sera dessiné ensuite sera automatiquement décalé par WPF.
+        dc.PushTransform(new TranslateTransform(totalOffsetX, totalOffsetY));
+
+        // Déclare le pinceau transparent en haut de OnRender avec tes autres ressources
         var transparentBrush = Brushes.Transparent;
         transparentBrush.Freeze(); // Toujours geler pour les performances
 
@@ -72,7 +74,7 @@ public class SectorMapControl : FrameworkElement
         worldBrush.Freeze();
         worldBrushBlue.Freeze();
 
-        // 1. Préparation de la typographie (en dehors de la boucle)
+        // Préparation de la typographie (en dehors de la boucle)
         var typeface = new Typeface("Consolas"); // Une police monospace est idéale pour les coordonnées
         double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip; // Requis par .NET moderne
 
@@ -82,30 +84,55 @@ public class SectorMapControl : FrameworkElement
 
         // Dans cette orientation, la distance horizontale est de 3/4 de la largeur
         double horizSpacing = width * 0.75; 
-        double vertSpacing = height; 
+        double vertSpacing = height;
 
-        // Dessin de la grille 32x40 standard de Traveller
-        for (int col = 1; col <= 32; col++)
+        // --- DÉBUT DU CULLING ---
+        // On récupère la taille actuelle du contrôle à l'écran
+        double viewWidth = this.ActualWidth;
+        double viewHeight = this.ActualHeight;
+
+        // On calcule la "boîte" de pixels visible, en inversant le décalage de la caméra
+        // Si je me déplace de +100 pixels, la caméra regarde les pixels à -100.
+        Point topLeftPixel = new Point(-totalOffsetX, -totalOffsetY);
+        Point bottomRightPixel = new Point(-totalOffsetX + viewWidth, -totalOffsetY + viewHeight);
+
+        // On demande au MathHelper quels hexagones se trouvent dans ces coins
+        var (minCol, minRow) = HexMathHelper.PixelToHex(topLeftPixel);
+        var (maxCol, maxRow) = HexMathHelper.PixelToHex(bottomRightPixel);
+
+        // On ajoute une "marge de sécurité" (Buffer) de 2 hexagones.
+        // Cela empêche de voir les hexagones disparaître subitement sur les bords de l'écran pendant qu'on glisse.
+        int startCol = minCol - 2;
+        int endCol = maxCol + 2;
+        int startRow = minRow - 2;
+        int endRow = maxRow + 2;
+
+        // --- FIN DU CULLING ---
+
+
+        for (int globalCol = startCol; globalCol <= endCol; globalCol++)
         {
-            for (int row = 1; row <= 40; row++)
+            for (int globalRow = startRow; globalRow <= endRow; globalRow++)
             {
                 // Calcul de la position X et Y
-                double xOffset = col * horizSpacing;
-                double yOffset = row * vertSpacing;
+                double xOffset = globalCol * horizSpacing;
+                double yOffset = globalRow * vertSpacing;
 
                 // Décalage vertical pour les colonnes paires (crée l'imbrication hexagonale)
-                if (col % 2 == 0)
+                if (globalCol % 2 == 0)
                 {
                     yOffset += height / 2.0;
                 }
 
                 var center = new Point(xOffset, yOffset);
 
-                // 1. Dessiner la forme de l'hexagone
+                // Dessiner la forme de l'hexagone
                 DrawHexagon(dc, center, hexPen, transparentBrush);
 
-                // 2. Formatage et dessin du texte des coordonnées
-                string hexCoord = $"{col:D2}{row:D2}";
+                // --- AFFICHAGE TEMPORAIRE POUR LE DÉBOGAGE ---
+                // Pour l'instant, on affiche la coordonnée GLOBALE pour que tu voies la caméra travailler.
+                // Si tu glisses vers la gauche, tu vas voir des colonnes négatives (ex: -01, -02).
+                string hexCoord = $"{globalCol}{globalRow}";
                 var formattedText = new FormattedText(
                     hexCoord,
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -121,24 +148,39 @@ public class SectorMapControl : FrameworkElement
 
                 dc.DrawText(formattedText, new Point(textX, textY));
 
-                // 3. S'il y a des données et qu'un monde existe à cette coordonnée, on le dessine
-                if (SectorData != null && SectorData.HasWorldAt(col, row))
+
+                // --- GESTION DES DONNÉES  ---
+                // Trouver dans quel secteur macroscopique se trouve cet hexagone global
+                var coordSecteur = HexMathHelper.GetSectorFromGlobal(globalCol, globalRow);
+
+                // Trouver la coordonnée locale (ex: 0105) à l'intérieur de ce secteur
+                var (localCol, localRow) = HexMathHelper.GetLocalFromGlobal(globalCol, globalRow);
+
+                // Demander le secteur au fournisseur (qui fera un cache hit ou un chargement JSON)
+                Sector? secteurCible = SectorProvider?.Invoke(coordSecteur);
+
+                // On s'assure de ne dessiner les planètes que si on regarde la bonne zone.
+                if (secteurCible != null && secteurCible.HasWorldAt(localCol, localRow))
                 {
-                    // Dessine le système stellaire (un simple cercle blanc pour l'instant)
-                    World? world = SectorData.GetWorldAt(col, row);
-                    if (world.HasWater) 
+                    World? world = secteurCible.GetWorldAt(localCol, localRow);
+                    if (world != null)
                     {
-                        dc.DrawEllipse(worldBrushBlue, null, center, 4.0, 4.0);
-                    } 
-                    else 
-                    {
-                        dc.DrawEllipse(worldBrush, null, center, 4.0, 4.0);
-                    }  
+                        if (world.HasWater)
+                        {
+                            dc.DrawEllipse(worldBrushBlue, null, center, 4.0, 4.0);
+                        }
+                        else
+                        {
+                            dc.DrawEllipse(worldBrush, null, center, 4.0, 4.0);
+                        }
+                    }
                 }
+
             }
+
         }
 
-        // 4. Rendu du tracé de saut (Route vectorielle)
+        // Rendu du tracé de saut (Route vectorielle)
         if (CurrentRoute != null && CurrentRoute.Count > 1)
         {
             var routePen = new Pen(Brushes.LimeGreen, 3.0)
@@ -172,6 +214,9 @@ public class SectorMapControl : FrameworkElement
                 dc.DrawEllipse(haloBrush, new Pen(Brushes.LimeGreen, 1), p, 8.0, 8.0);
             }
         }
+
+        // À la toute fin de OnRender, on retire la transformation
+        dc.Pop();
 
     }
 
@@ -211,24 +256,53 @@ public class SectorMapControl : FrameworkElement
         return new Point(xOffset, yOffset);
     }
 
+    #region Surcharge souris
+
+
     protected override void OnMouseLeftButtonDown(System.Windows.Input.MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
 
-        // Récupération de la coordonnée X,Y exacte par rapport au coin supérieur gauche du contrôle
-        Point clickPosition = e.GetPosition(this);
+        // Capture la souris pour continuer à recevoir les événements 
+        // même si le curseur sort de la zone du contrôle
+        CaptureMouse();
+        _dragStart = e.GetPosition(this);
+    }
 
-        // Appel à notre moteur mathématique
-        var (col, row) = HexMathHelper.PixelToHex(clickPosition);
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
 
-        // Validation : On s'assure que le clic tombe dans les limites du secteur Traveller
-        if (col >= 1 && col <= 32 && row >= 1 && row <= 40)
+        if (_dragStart.HasValue && IsMouseCaptured)
         {
-            string hexCoord = $"{col:D2}{row:D2}";
-            System.Windows.MessageBox.Show($"Cible acquise : Hexagone {hexCoord}");
+            var currentPosition = e.GetPosition(this);
+            // Calcule la distance parcourue depuis le clic
+            _tempDragOffset = currentPosition - _dragStart.Value;
 
-            // Plus tard, c'est ici qu'on mettra à jour la propriété SelectedHexagon du ViewModel
+            // Force WPF à redessiner immédiatement
+            InvalidateVisual();
         }
     }
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonUp(e);
+
+        if (IsMouseCaptured)
+        {
+            ReleaseMouseCapture();
+            _dragStart = null;
+
+            // On consolide le déplacement temporaire dans le déplacement global
+            _mapOffset += _tempDragOffset;
+            _tempDragOffset = new Vector(0, 0);
+
+            // TODO plus tard : C'est ICI qu'on vérifiera si le décalage justifie 
+            // de charger le secteur adjacent via le GalaxyManager.
+        }
+    }
+
+
+    #endregion
 
 }

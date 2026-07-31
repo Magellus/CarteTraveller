@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CarteTraveller.Models;
+using System;
 using System.Windows;
 
 namespace CarteTraveller.Services
@@ -100,6 +101,25 @@ namespace CarteTraveller.Services
             var (q2, r2, s2) = OffsetToCube(col2, row2);
 
             return (Math.Abs(q1 - q2) + Math.Abs(r1 - r2) + Math.Abs(s1 - s2)) / 2;
+        }
+
+        public static SectorCoordinate GetSectorFromGlobal(int globalCol, int globalRow)
+        {
+            // Math.Floor est crucial ici pour que la colonne 0 appartienne au secteur -1
+            // On soustrait 1 car tes hexagones locaux commencent à 1 (et non 0).
+            int secX = (int)Math.Floor((double)(globalCol - 1) / 32);
+            int secY = (int)Math.Floor((double)(globalRow - 1) / 40);
+
+            return new SectorCoordinate(secX, secY);
+        }
+
+        public static (int localCol, int localRow) GetLocalFromGlobal(int globalCol, int globalRow)
+        {
+            // Formule robuste pour gérer les modulos négatifs en C#
+            int localCol = ((globalCol - 1) % 32 + 32) % 32 + 1;
+            int localRow = ((globalRow - 1) % 40 + 40) % 40 + 1;
+
+            return (localCol, localRow);
         }
 
     }

@@ -65,7 +65,7 @@ public class GalaxyManager : IGalaxyProvider
         }
     }
 
-    private Sector? GetOrLoadSector(SectorCoordinate coord)
+    public Sector? GetOrLoadSector(SectorCoordinate coord)
     {
         if (_loadedSectors.TryGetValue(coord, out var sector))
             return sector;
