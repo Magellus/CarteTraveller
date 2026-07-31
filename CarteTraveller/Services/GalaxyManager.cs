@@ -7,11 +7,11 @@ namespace CarteTraveller.Services;
 public class GalaxyManager : IGalaxyProvider
 {
     private readonly Dictionary<SectorCoordinate, Sector> _loadedSectors = new();
-    private readonly string _storagePath;
+    private readonly ICampaignContext _campaignContext;
 
-    public GalaxyManager(string storagePath)
+    public GalaxyManager(ICampaignContext campaignContext)
     {
-        _storagePath = storagePath;
+        _campaignContext = campaignContext;
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class GalaxyManager : IGalaxyProvider
 
         // Si non chargé, on utilise ton SectorPersistenceService
         string filename = $"Sector_{coord.X}_{coord.Y}.json";
-        string fullPath = System.IO.Path.Combine(_storagePath, filename);
+        string fullPath = System.IO.Path.Combine(_campaignContext.CurrentCampaignPath, filename);
 
         sector = SectorPersistenceService.LoadSector(fullPath);
         if (sector != null)

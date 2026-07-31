@@ -18,24 +18,21 @@ namespace CarteTraveller
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly ICampaignContext _campaignContext;
+        private readonly IGalaxyProvider _galaxyManager;
         private AppState _currentAppState;
-        private GalaxyManager _galaxyManager;
 
-        public MainWindow()
+        public MainWindow(IGalaxyProvider galaxyManager, ICampaignContext campaignContext)
         {
             InitializeComponent();
+            _galaxyManager = galaxyManager;
+            _campaignContext = campaignContext;
 
             // 1. Chargement de l'état au démarrage
-            // TODO: enlever la partie ou je gère le secteur de cette validation pour la descendre dans un appstate par campagne.
-            //De cette façon, je peux avoir plusieurs campagne en cours dans des secteurs différent et des carte différente si je veux.
             _currentAppState = AppStateService.LoadState();
-            // TODO: utiliser le contenu du premier appstate pour trouver la dernière campagne en cours.
-            // TODO: planifier une façon de changer de campagne une fois l'application ouverte.
-            _galaxyManager = new GalaxyManager(@"C:\Traveller\Saves\MaCampagne");
 
-            // TODO: récupérer le 2e appState ici...
-            // 2. Initialisation de la carte sur le dernier secteur connu
-            LoadMapAt(_currentAppState.LastActiveSector, _currentAppState.LastZoomLevel);
+            // 2. On injecte le chemin sauvegardé dans notre contexte Singleton
+            _campaignContext.CurrentCampaignPath = _currentAppState.LastCampaignPath ?? @"C:\Traveller\Saves\Defaut";
 
         }
 
