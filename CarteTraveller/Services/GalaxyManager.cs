@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.IO;
 using System.Collections.Generic;
 using CarteTraveller.Models;
 
@@ -71,15 +71,16 @@ public class GalaxyManager : IGalaxyProvider
             return sector;
 
         // Si non chargé, on utilise ton SectorPersistenceService
+        string campaignPath = _campaignContext.CurrentCampaignPath;
         string filename = $"Sector_{coord.X}_{coord.Y}.json";
-        string fullPath = System.IO.Path.Combine(_campaignContext.CurrentCampaignPath, filename);
+        string fullPath = System.IO.Path.Combine(campaignPath, filename);
 
         sector = SectorPersistenceService.LoadSector(fullPath);
         if (sector != null)
         {
             _loadedSectors[coord] = sector;
         }
-
+        // TODO: générer un secteur ici si sector est null.
         return sector;
     }
 
@@ -110,5 +111,11 @@ public class GalaxyManager : IGalaxyProvider
     }
 
     //TODO: faire la même chose mais pour charger des secteur.
+
+
+    public void ClearCache()
+    {
+        _loadedSectors.Clear();
+    }
 
 }

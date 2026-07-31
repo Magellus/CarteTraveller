@@ -8,6 +8,20 @@ namespace CarteTraveller.Controls;
 
 public class SectorMapControl : FrameworkElement
 {
+    // Coordonnée du secteur affiché (ex: 0,0 ou 1,-1)
+    public static readonly DependencyProperty ActiveSectorCoordinateProperty =
+        DependencyProperty.Register(
+            nameof(ActiveSectorCoordinate),
+            typeof(SectorCoordinate),
+            typeof(SectorMapControl),
+            new FrameworkPropertyMetadata(new SectorCoordinate(0, 0), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public SectorCoordinate ActiveSectorCoordinate
+    {
+        get => (SectorCoordinate)GetValue(ActiveSectorCoordinateProperty);
+        set => SetValue(ActiveSectorCoordinateProperty, value);
+    }
+
     // Propriété de dépendance pour lier le modèle Sector
     public static readonly DependencyProperty SectorDataProperty =
         DependencyProperty.Register(

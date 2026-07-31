@@ -14,6 +14,15 @@ namespace CarteTraveller.Services
 
         public static void SaveSector(string filePath, Sector sector)
         {
+            // Extrait le répertoire du chemin complet (ex: C:\...\Saves\Defaut)
+            string? directoryPath = Path.GetDirectoryName(filePath);
+
+            if (!string.IsNullOrEmpty(directoryPath))
+            {
+                // Crée tous les dossiers parents requis s'ils n'existent pas
+                Directory.CreateDirectory(directoryPath);
+            }
+
             string jsonString = JsonSerializer.Serialize(sector, _options);
             File.WriteAllText(filePath, jsonString);
         }

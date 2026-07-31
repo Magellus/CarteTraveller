@@ -1,15 +1,6 @@
 ﻿using CarteTraveller.Models;
 using CarteTraveller.Services;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace CarteTraveller
 {
@@ -32,8 +23,13 @@ namespace CarteTraveller
             _currentAppState = AppStateService.LoadState();
 
             // 2. On injecte le chemin sauvegardé dans notre contexte Singleton
-            _campaignContext.CurrentCampaignPath = _currentAppState.LastCampaignPath ?? @"C:\Traveller\Saves\Defaut";
+            if (_currentAppState.LastCampaignPath == string.Empty) 
+            {
+                _currentAppState.LastCampaignPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves", "Defaut");
+            }
+            _campaignContext.CurrentCampaignPath = _currentAppState.LastCampaignPath;
 
+            LoadMapAt(_currentAppState.LastActiveSector,1);
         }
 
         private void LoadMapAt(SectorCoordinate coord, double zoomLevel)
@@ -56,10 +52,12 @@ namespace CarteTraveller
             {
                 // Nouvelle campagne
                 SectorGeneratorService générateur = new SectorGeneratorService();
-                mySector = générateur.GenerateSector("Sector_0_0", -2);
+                mySector = générateur.GenerateSector("Sector_0_0");
 
+                // Combinaison sécurisée du répertoire et du fichier
+                string fullFilePath = System.IO.Path.Combine(_currentAppState.LastCampaignPath, "Sector_0_0.json");
                 // Sauvegarde
-                SectorPersistenceService.SaveSector("Sector_0_0.json", mySector);
+                SectorPersistenceService.SaveSector(fullFilePath, mySector);
             }
             MapControl.SectorData = mySector;
         }

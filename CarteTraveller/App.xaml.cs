@@ -22,11 +22,11 @@ namespace CarteTraveller
 
         private void ConfigureServices(IServiceCollection services)
         {
-            // Enregistrement des services (Ton infrastructure et domaine)
-            // AddSingleton signifie qu'on aura une seule instance partagée dans toute l'app
-            services.AddSingleton<IGalaxyProvider>(provider =>
-                new GalaxyManager(@"C:\Traveller\Saves\MaCampagne")
-            );
+            // On enregistre le contexte d'abord
+            services.AddSingleton<ICampaignContext, CampaignContext>();
+
+            // On enregistre le manager ensuite
+            services.AddSingleton<IGalaxyProvider, GalaxyManager>();
 
             // On peut aussi enregistrer des services sans interface si nécessaire
             services.AddTransient<SectorGeneratorService>();
